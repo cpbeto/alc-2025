@@ -19,10 +19,13 @@ def error_relativo(x, y):
     return np.abs(x - y) / x
 
 
-def matricesIguales(A, B):
+def matricesIguales(A, B, rtol=1e-5, atol=1e-8):
     """
     Devuelve True si ambas matrices son iguales y False en otro caso.
     Considerar que las matrices pueden tener distintas dimensiones, ademas de distintos valores.
+    Refs:
+      https://numpy.org/doc/stable/reference/generated/numpy.allclose.html
+      https://docs.python.org/3/library/math.html#math.isclose
     """
     if np.shape(A) != np.shape(B):
         return False
@@ -31,7 +34,10 @@ def matricesIguales(A, B):
 
     for i in range(n):
         for j in range(m):
-            if not np.allclose(A[i, j], B[i, j]):
+            # Esta definición es equivalente a la definición de numpy.allclose
+            # con la diferencia que es simétrica respecto de A y B
+            tol = atol + rtol * np.maximum(np.abs(A[i, j]), np.abs(B[i, j]))
+            if error(A[i, j], B[i, j]) > tol:
                 return False
 
     return True
