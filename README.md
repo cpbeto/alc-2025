@@ -1,2 +1,2 @@
-# mn-alc
-Apuntes de Métodos Numéricos o Álgebra Lineal Computacional
+# alc-2025
+Apuntes de Álgebra Lineal Computacional
