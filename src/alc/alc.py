@@ -1,4 +1,5 @@
 import numpy as np
+from collections.abc import Iterable
 
 def error(x, y):
     """
@@ -186,35 +187,45 @@ def normaExacta(A, p=[1, 'inf']):
     Devuelve una lista con las normas 1 e infinito de una matriz A,
     usando las expresiones del enunciado (2.c).
     """
-    # Esto es una guarda ad hoc para cumplir con el test case provisto
-    # por la cátedra. Desde el punto de vista de especificación no
-    # tiene sentido.
-    if p != [1, 'inf']:
+    if p == 1:
+        p = [1]
+    elif p == 'inf':
+        p = ['inf']
+    elif not isinstance(p, Iterable) or list(p) != [1, 'inf']:
         return None
-
+    
     m, n = A.shape
     
-    max = 0
-    for j in range(n):
-        sum = 0
-        for i in range(m):
-            sum += np.abs(A[i, j])
-
-        if sum > max:
-            max = sum
-
-    norma_1 = max
-    
-    max = 0
-    for i in range(m):
-        sum = 0
+    norma_1 = None
+    if 1 in p:
+        max = 0
         for j in range(n):
-            sum += np.abs(A[i, j])
+            sum = 0
+            for i in range(m):
+                sum += np.abs(A[i, j])
 
-        if sum > max:
-            max = sum
+            if sum > max:
+                max = sum
 
-    norma_inf = max
+        norma_1 = max
+
+    norma_inf = None
+    if 'inf' in p:
+        max = 0
+        for i in range(m):
+            sum = 0
+            for j in range(n):
+                sum += np.abs(A[i, j])
+
+            if sum > max:
+                max = sum
+
+        norma_inf = max
+
+    if p == [1]:
+        return norma_1
+    elif p == ['inf']:
+        return norma_inf
 
     return norma_1, norma_inf
 

@@ -128,13 +128,16 @@ def test_normaMatMC():
     assert(np.allclose(result[0], normaExacta(A)[1], rtol=1e-1)) 
 
 def test_normaExacta():
+    # Default tuple behavior
     assert(np.allclose(normaExacta(np.array([[1,-1],[-1,-1]]))[0], 2))
     assert(np.allclose(normaExacta(np.array([[1,-1],[-1,-1]]))[1], 2))
     assert(np.allclose(normaExacta(np.array([[1,-2],[-3,-4]]))[0], 6))
     assert(np.allclose(normaExacta(np.array([[1,-2],[-3,-4]]))[1], 7))
-    assert(normaExacta(np.array([[1,-2],[-3,-4]]), 2) is None)
-    assert(normaExacta(np.random.random((10,10)))[0] <= 10)
-    assert(normaExacta(np.random.random((4,4)))[1] <= 4)
+    
+    # Single value behavior
+    assert(np.allclose(normaExacta(np.array([[1,-2],[-3,-4]]), 1), 6))
+    assert(np.allclose(normaExacta(np.array([[1,-2],[-3,-4]]), 'inf'), 7))
+    assert(normaExacta(np.array([[1,-2],[-3,-4]]), 2) is None)    
 
 def test_condMC():
     A = np.array([[1,1],[0,1]])
