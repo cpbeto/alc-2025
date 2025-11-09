@@ -3,6 +3,7 @@ import numpy as np
 from alc.alc import error, error_relativo, matricesIguales
 from alc.alc import rota, escala, rota_y_escala, afin, trans_afin
 from alc.alc import norma, normaliza, normaMatMC, normaExacta, condMC, condExacto
+from alc.alc import calculaLU #, res_tri, inversa, calculaLDV, esSDP
 
 def test_error():
     def sonIguales(x, y, atol=1e-8):
@@ -168,3 +169,50 @@ def test_condExacto():
     norma_A_inv = normaExacta(A_inv)[1]
     condA = condExacto(A,'inf')
     assert(np.allclose(norma_A*norma_A_inv, condA))
+
+def test_calculaLU():
+    L0 = np.array([[1,0,0],
+                [0,1,0],
+                [1,1,1]])
+
+    U0 = np.array([[10,1,0],
+                [0,2,1],
+                [0,0,1]])
+    A =  L0 @ U0
+    L, U, _ = calculaLU(A)
+    assert(np.allclose(L, L0))
+    assert(np.allclose(U, U0))
+
+
+    L0 = np.array([[1,0,0],
+                [1,1.001,0],
+                [1,1,1]])
+
+    U0 = np.array([[1,1,1],
+                [0,1,1],
+                [0,0,1]])
+    A =  L0 @ U0
+    L, U, n_ops = calculaLU(A)
+    assert(not np.allclose(L, L0))
+    assert(not np.allclose(U, U0))
+    assert(np.allclose(L, L0, atol=1e-3))
+    assert(np.allclose(U, U0, atol=1e-3))
+    # assert(nops == 13)
+
+    L0 = np.array([[1,0,0],
+                [1,1,0],
+                [1,1,1]])
+
+    U0 = np.array([[1,1,1],
+                [0,0,1],
+                [0,0,1]])
+
+    A =  L0 @ U0
+    L, U, nops = calculaLU(A)
+    assert(L is None)
+    assert(U is None)
+    assert(nops == 0)
+
+    assert(calculaLU(None) == (None, None, 0))
+
+    assert(calculaLU(np.array([[1,2,3],[4,5,6]])) == (None, None, 0))

@@ -1,5 +1,6 @@
 import numpy as np
 from collections.abc import Iterable
+from functools import reduce
 
 def error(x, y):
     """
@@ -254,3 +255,48 @@ def condExacto(A, p):
     norma_A_inv = normaExacta(A_inv)[idx]
 
     return norma_A * norma_A_inv
+
+def calculaLU(A):
+    """
+    Calcula la factorización LU de la matriz A y retorna las matrices L y U,
+    junto con el número de operaciones realizadas. En caso de que la matriz
+    no pueda factorizarse retorna None.
+    """
+    if A is None:
+        return None, None, 0
+    
+    m, n = A.shape
+
+    if m != n:
+        # raise NotImplementedError
+        return None, None, 0
+
+    # M = np.eye(n, m)
+    U = A
+    rs = []
+    es = []
+    nops = 0
+    for j in range(n): # Iteramos columnas
+        # Requiere pivoteo
+        if np.allclose(U[j, j], 0):
+            # raise NotImplementedError
+            return None, None, 0
+        
+        rj = np.array([0]*(j+1) + [U[i, j] / U[j, j] for i in range(j+1, m)]).reshape(-1, 1)
+        rs.append(rj)
+
+        ej = np.zeros((1, m))
+        ej[0, j] = 1
+        es.append(ej)
+    
+        Mj = np.eye(n, m) - rj@ej
+        # M = Mj @ M
+        U = Mj @ U
+
+    L = reduce(
+        lambda L, j: L + rs[j] @ es[j],
+        range(n),
+        np.eye(m, n)
+    )
+
+    return L, U, 0
