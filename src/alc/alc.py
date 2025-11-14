@@ -266,37 +266,34 @@ def calculaLU(A):
         return None, None, 0
     
     m, n = A.shape
-
     if m != n:
         # raise NotImplementedError
-        return None, None, 0
+        return None, None, 0 # Solo matrices cuadradas
+   
+    L = np.zeros((m, m))
+    U = A.copy()
+    
+    for fila in range(m):
+        # Diagonal de L siempre es 1
+        L[fila, fila] = 1
 
-    # M = np.eye(n, m)
-    U = A
-    rs = []
-    es = []
-    nops = 0
-    for j in range(n): # Iteramos columnas
+        pivote = U[fila, fila]
         # Requiere pivoteo
-        if np.allclose(U[j, j], 0):
+        if np.allclose(np.abs(pivote), 0):
             # raise NotImplementedError
             return None, None, 0
-        
-        rj = np.array([0]*(j+1) + [U[i, j] / U[j, j] for i in range(j+1, m)]).reshape(-1, 1)
-        rs.append(rj)
 
-        ej = np.zeros((1, m))
-        ej[0, j] = 1
-        es.append(ej)
-    
-        Mj = np.eye(n, m) - rj@ej
-        # M = Mj @ M
-        U = Mj @ U
+        for i in range(fila+1, m):
+            factor = U[i, fila] / pivote
+            L[i, fila] = factor
+            
+            for j in range(fila, m):
+                U[i, j] -= factor * U[fila, j]
 
-    L = reduce(
-        lambda L, j: L + rs[j] @ es[j],
-        range(n),
-        np.eye(m, n)
-    )
-
-    return L, U, 0
+    operaciones = 0
+    for i in range(m):
+        for j in range(i):
+            if not np.allclose(abs(L[i][j]), 0):
+               operaciones += 1
+                
+    return L, U, operaciones
