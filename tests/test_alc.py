@@ -4,6 +4,11 @@ from alc.alc import rota, escala, rota_y_escala, afin, trans_afin
 from alc.alc import norma, normaliza, normaMatMC, normaExacta, condMC, condExacto
 from alc.alc import calculaLU, res_tri, inversa, calculaLDV, esSDP
 from alc.alc import QR_con_GS, QR_con_HH, calculaQR
+from alc.alc import metpot2k, diagRH
+
+# ------------------------------------------------------------
+# Laboratorio 1
+# ------------------------------------------------------------
 
 # ------------------------------------------------------------
 # Laboratorio 1
@@ -386,3 +391,71 @@ def test_calculaQR():
 
     Q4, R4 = calculaQR(A4, metodo='RH')
     check_QR(Q4, R4, A4)
+
+# ------------------------------------------------------------
+# Laboratorio 6
+# ------------------------------------------------------------
+
+def test_metpot2k():
+    S = np.vstack([
+        np.array([2,1,0])/np.sqrt(5),
+        np.array([-1,2,5])/np.sqrt(30),
+        np.array([1,-2,1])/np.sqrt(6)
+    ]).T
+
+    # Tasa de muestreo (30 es el número mágico según alguna literatura)
+    N = 30
+
+    # Pedimos que pase el 95% de los casos
+    exitos = 0
+    for i in range(N):
+        D = np.diag(np.random.random(3) + 1) * 100
+        A = S@D@S.T
+        _, lambda1, _ = metpot2k(A, 1e-15, 10000)
+        if np.allclose(lambda1, np.max(D), atol=1e-8):
+            exitos += 1
+    assert exitos/N > 0.95
+
+
+    # Test con HH
+    exitos = 0
+    for i in range(N):
+        v = np.random.rand(9)
+        idx = np.argsort(-np.abs(v))
+        D = np.diag(v[idx]) # Matriz diagonal con autovalores en orden decreciente
+        I = np.eye(9)
+        H = I - 2*np.outer(v.T, v)/(np.linalg.norm(v)**2) # Matriz de HouseHolder
+
+        A = H@D@H.T
+        _, lambda1, _ = metpot2k(A, 1e-15, 10000)
+        if np.allclose(lambda1, D[0,0]):
+            exitos += 1
+    assert exitos/N > 0.95
+
+def test_diagRH():
+    D = np.diag([1,0.5,0.25])
+    S = np.vstack([
+        np.array([1,-1,1])/np.sqrt(3),
+        np.array([1,1,0])/np.sqrt(2),
+        np.array([1,-1,-2])/np.sqrt(6)
+    ]).T
+
+    A = S@D@S.T
+    SRH, DRH = diagRH(A, atol=1e-15, K=10000)
+    assert np.allclose(D,DRH)
+    assert np.allclose(np.abs(S.T@SRH), np.eye(A.shape[0]), atol=1e-7)
+
+    # Tasa de muestreo (30 es el número mágico según alguna literatura)
+    N = 30
+
+    # Pedimos que pase el 95% de los casos
+    exitos = 0
+    for i in range(N):
+        A = np.random.random((5,5))
+        A = 0.5*(A+A.T)
+        S,D = diagRH(A, atol=1e-15, K=10000)
+        ARH = S@D@S.T
+        e = normaExacta(ARH-A, p='inf')
+        if e < 1e-5: 
+            exitos += 1
+    assert exitos/N >= 0.95

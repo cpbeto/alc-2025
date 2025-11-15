@@ -39,6 +39,14 @@ def producto_interno(u, v):
 def producto_exterior(u, v):
     return multiplicar(vector_columna(u), vector_fila(v))
 
+def transpuesta(A):
+    m, n = A.shape
+    A_T = np.zeros((n, m))
+    for i in range(m):
+        for j in range(n):
+            A_T[j, i] = A[i, j]
+    return A_T
+
 # ------------------------------------------------------------
 # Laboratorio 1
 # ------------------------------------------------------------
@@ -291,6 +299,23 @@ def calculaLDV(A):
 
     return L, D, V
 
+# --- Utilidad para verificar simetría ---
+def simetrica(A, atol=1e-8):
+    """
+    Chequea si la matriz A es simétrica.
+    """
+    m, n = A.shape
+    if m != n:
+        # raise ValueError
+        return False # Solo matrices cuadradas
+        
+    for i in range(m):
+        for j in range(n):
+            if not escalares_iguales(A[i,j], A[j,i], atol=atol):
+                return False
+
+    return True
+
 def esSDP(A, atol=1e-8):
     """
     Chequea si la matriz A es simétrica definida positiva (SDP)
@@ -302,10 +327,8 @@ def esSDP(A, atol=1e-8):
         return False # Solo matrices cuadradas
         
     # Simetría
-    for i in range(m):
-        for j in range(n):
-            if not escalares_iguales(A[i,j], A[j,i], atol=atol):
-                return False
+    if not simetrica(A, atol=atol):
+        return False
         
     LDV = calculaLDV(A)
     if LDV == None:
@@ -327,6 +350,8 @@ def norma(x, p):
     """
     Devuelve la norma p del vector x.
     """
+    x = vector_unidimensional(x)
+
     n, = x.shape
     p_inf = (p == 'inf')
     p = p if not p_inf else 1
@@ -471,10 +496,10 @@ def condExacto(A, p):
 # Laboratorio 5
 # ------------------------------------------------------------
 
-def QR_con_GS(A, tol = 1e-12, retorna_nops=False):
+def QR_con_GS(A, atol=1e-12, retorna_nops=False):
     """
     A una matriz de n x n
-    tol la tolerancia con la que se filtran elementos nulos en R.
+    atol la tolerancia con la que se filtran elementos nulos en R (no utilizado).
     retorna_nops permite (opcionalmente) retornar el número de operaciones realizadas
     Retorna matrices Q y R calculadas con Gram-Schmidt (y como tercer argumento opcional,
     el número de operaciones).
@@ -484,24 +509,36 @@ def QR_con_GS(A, tol = 1e-12, retorna_nops=False):
     if m != n:
         return None # Solo matrices cuadradas
     
+    operaciones = 0
+
     Q = np.zeros((m, n)) 
     Q[:, 0] = A[:, 0] / norma(A[:, 0], p=2)
+    operaciones += m + 2*m # División elemento a elemento + cálculo de norma
 
     for col in range(1, n):
         Q[:, col] = A[:, col]
         for i in range(col):
-            num = producto_interno(Q[:, col], Q[:, i])
-            den = producto_interno(Q[:, i], Q[:, i])
-            Q[:, col] = Q[:, col] - (num / den) * Q[:, i]
-        Q[:, col] = Q[:, col] / norma(Q[:, col], p=2)
-    
-    R = multiplicar(Q.T, A)
-    return Q, R
+            factor = producto_interno(Q[:, col], Q[:, i]) / producto_interno(Q[:, i], Q[:, i])
+            operaciones += 2*(2*m-1) + 1  # Dos productos internos + una división
 
-def QR_con_HH (A, tol=1e-12):
+            Q[:, col] = Q[:, col] - factor * Q[:, i]
+            operaciones += 2*m # Multiplicación y resta elemento a elemento
+
+        Q[:, col] = Q[:, col] / norma(Q[:, col], p=2)
+        operaciones += m + 2*m  # División elemento a elemento + cálculo de norma
+    
+    R = multiplicar(transpuesta(Q), A)
+    operaciones += n**2 * (2*n)  # Producto matricial
+
+    if retorna_nops:
+        return Q, R, operaciones
+    else:
+        return Q, R
+
+def QR_con_HH (A, atol=1e-12):
     """
     A una matriz de m x n (m >= n)
-    tol la tolerancia con la que se filtran elementos nulos en R.
+    atol la tolerancia con la que se filtran elementos nulos en R.
     Retorna matrices Q y R calculadas con reflexiones de Householder.
     Si la matriz A no cumple m >= n, retorna None.
     """
@@ -517,15 +554,15 @@ def QR_con_HH (A, tol=1e-12):
         u = np.zeros(m)
         for i in range(col, m):
             u[i] = R[i][col]
-        norma = np.linalg.norm(u)
-        if norma < tol:
+        norma_u = norma(u, p=2)
+        if norma_u < atol:
             continue
         
         signo = np.sign(R[col][col]) if R[col][col] != 0 else 1
         e = np.zeros(m)
         e[col] = 1
         for i in range(m):
-            u[i] += signo * norma * e[i]
+            u[i] += signo * norma_u * e[i]
 
         uuT = producto_exterior(u, u)
         uTu = producto_interno(u, u)
@@ -545,10 +582,10 @@ def QR_con_HH (A, tol=1e-12):
 
     return Q, R
 
-def calculaQR (A, metodo, tol=1e-12, retorna_nops=False):
+def calculaQR (A, metodo, atol=1e-12, retorna_nops=False):
     """
     A una matriz de n x n
-    tol la tolerancia con la que se filtran elementos nulos en R.
+    atol la tolerancia con la que se filtran elementos nulos en R.
     metodo = ['RH', 'GS'] usa reflectores de Householder o Gram-Schmidt, respectivamente,
     para realizar la factorización QR.
     Retorna matrices Q y R calculadas con el método indicado (y como tercer argumento opcional,
@@ -559,8 +596,107 @@ def calculaQR (A, metodo, tol=1e-12, retorna_nops=False):
         return None # Solo matrices cuadradas
     
     if metodo == 'RH':
-        return QR_con_HH(A, tol)
+        return QR_con_HH(A, atol)
     if metodo == 'GS':
-        return QR_con_GS(A, tol)
+        return QR_con_GS(A, atol)
     else:
         return None
+
+# ------------------------------------------------------------
+# Laboratorio 6
+# ------------------------------------------------------------
+
+def metpot2k(A: np.array, atol=1e-15, K=1000):
+    """
+    A una matriz de n x n
+    atol la tolerancia en la diferencia entre un paso y el siguiente
+    de la estimación del autovector.
+    K el número máximo de iteraciones a realizarse.
+    Retorna el autovector v, el autovalor lambda y número de iteraciones realizadas.
+    """
+    m, n = A.shape
+    if m != n:
+        return None # Solo matrices cuadradas
+    
+    # Genero un vector aleatorio de norma 1
+    u = np.random.rand(m)
+    u = vector_columna(u) / norma(u, p=2)
+    
+    iteraciones = 0
+    lambda1 = 0
+
+    for _ in range(K):
+        v = multiplicar(A, u)
+        v = v / norma(v, p=2)
+
+        # Chequeo de convergencia
+        if norma(v - u, p=2) < atol:
+            break
+
+        u = v
+        iteraciones += 1
+
+    # Calculo lambda con el último v obtenido
+    Av = multiplicar(A, v)
+    lambda1 = producto_interno(v, Av)
+
+    return v, lambda1, iteraciones
+
+def diagRH(A: np.array, atol=1e-15, K=1000):
+    """
+    A una matriz simétrica de n x n
+    atol la tolerancia en la diferencia entre un paso y el siguiente
+    de la estimación del autovector.
+    K el número máximo de iteraciones a realizarse.
+    Retorna matriz de autovectores S y matriz de autovalores D, tal que A = S D S.T.
+    Si la matriz A no es simétrica, retorna None.
+    """
+    m, n = A.shape
+    
+    if not simetrica(A, atol=atol):
+        return None
+
+    # Caso base n = 1
+    if m == 1:
+        return np.eye(1), A
+
+    # Obtener autovector y autovalor dominante
+    v1, lambda1, _ = metpot2k(A, atol, K)
+
+    # Construir vector columna e1
+    e1 = np.zeros((m, 1))
+    e1[0, 0] = 1
+
+    # Construir la reflexión de Householder
+    u = e1 - v1
+    if norma(u, p=2) < atol:
+        Hv1 = np.eye(n)
+    else:
+        u = u / norma(u, p=2)
+        Hv1 = np.eye(n) - 2 * producto_exterior(u, u)
+
+    # Caso base n = 2
+    if n == 2:
+        S = Hv1
+        D = multiplicar(multiplicar(transpuesta(S), A), S)
+        return S, D
+
+    # Reducir el problema
+    B = multiplicar(multiplicar(transpuesta(Hv1), A), Hv1)
+    A_tilde = B[1:, 1:]
+
+    # Paso recursivo
+    S_tilde, D_tilde = diagRH(A_tilde, atol, K)
+
+    # Reconstruir D
+    D = np.zeros((n, n))
+    D[0, 0] = lambda1
+    D[1:, 1:] = D_tilde
+
+    # Reconstruir S
+    S = np.eye(n)
+    S[1:, 1:] = S_tilde
+    S = multiplicar(Hv1, S)
+
+    # Verificar tolerancia
+    return S, D
