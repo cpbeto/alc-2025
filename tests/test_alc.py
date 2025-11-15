@@ -5,6 +5,7 @@ from alc.alc import norma, normaliza, normaMatMC, normaExacta, condMC, condExact
 from alc.alc import calculaLU, res_tri, inversa, calculaLDV, esSDP
 from alc.alc import QR_con_GS, QR_con_HH, calculaQR
 from alc.alc import metpot2k, diagRH
+from alc.alc import transiciones_al_azar_continuas, transiciones_al_azar_uniforme, nucleo, crea_rala, multiplica_rala_vector
 from alc.alc import svd_reducida
 
 # ------------------------------------------------------------
@@ -456,6 +457,146 @@ def test_diagRH():
         if e < 1e-5: 
             exitos += 1
     assert exitos/N >= 0.95
+
+# ------------------------------------------------------------
+# Laboratorio 7
+# ------------------------------------------------------------
+
+def es_markov(T, atol=1e-6):
+    m, n = T.shape
+    if m != n:
+        return False
+    
+    for i in range(n):
+        for j in range(n):
+            if T[i,j] < 0:
+                return False
+    
+    for j in range(n):
+        suma = sum(T[:,j])
+        if not np.allclose(suma, 1, atol=atol):
+            return False
+        
+    return True
+
+def es_markov_uniforme(T, atol=1e-6):
+    """
+    T una matriz cuadrada.
+    atol la tolerancia para asumir que una entrada es igual a cero.
+    Retorna True sii T es una matriz de transición de Markov uniforme
+    (entradas iguales a cero o iguales entre si en cada columna, y columnas que suman 1 dentro de la tolerancia).
+    """
+    if not es_markov(T, atol):
+        return False
+    
+    # Cada columna debe tener entradas iguales entre si o iguales a cero
+    m, n = T.shape
+    for j in range(n):
+        non_zero = T[:,j][T[:,j] > atol]
+        # All close
+        close = all(np.abs(non_zero - non_zero[0]) < atol)
+        if not close:
+            return False
+    return True
+
+def test_transiciones_al_azar_continuas():
+    # Tasa de muestreo (30 es el número mágico según alguna literatura)
+    N = 30
+
+    for n in range(N):
+        T = transiciones_al_azar_continuas(n)
+        assert es_markov(T)
+
+def test_transiciones_al_azar_uniforme():
+    # Tasa de muestreo (30 es el número mágico según alguna literatura)
+    N = 30
+
+    for n in range(N):
+        T = transiciones_al_azar_uniforme(n, threshold=0.3)
+        print(T)
+        assert es_markov_uniforme(T)
+        T = transiciones_al_azar_uniforme(n, threshold=0.01)
+        assert es_markov_uniforme(T)
+
+def esNucleo(A, S, atol=1e-5):
+    for col in S.T:
+        res = A @ col
+        if not np.allclose(res, np.zeros(A.shape[0]), atol=atol):
+            return False
+    return True
+
+def test_nucleo():
+    A = np.eye(3)
+    S = nucleo(A)
+    assert S.shape == (3,0)
+
+    A[1,1] = 0
+    S = nucleo(A)
+    assert esNucleo(A,S)
+    assert S.shape == (3,1)
+    assert abs(S[2,0]) < 1e-2
+    assert abs(S[0,0]) < 1e-2
+
+    v = np.random.random(5)
+    v = v / np.linalg.norm(v)
+    H = np.eye(5) - np.outer(v, v) # Proyección ortogonal
+    S = nucleo(H)
+    assert S.shape == (5,1)
+    v_gen = S[:,0]
+    v_gen = v_gen / np.linalg.norm(v_gen)
+    assert np.allclose(v, v_gen) or np.allclose(v, -v_gen)
+
+def test_crea_rala():
+    listado = [[0,17],[3,4],[0.5,0.25]]
+    A_rala, dims = crea_rala(listado, 32, 89)
+    assert dims == (32,89)
+    assert A_rala[(0,3)] == 0.5
+    assert A_rala[(17,4)] == 0.25
+    assert len(A_rala) == 2
+
+    listado = [[32,16,5],[3,4,7],[7,0.5,0.25]]
+    A_rala, dims = crea_rala(listado, 50, 50)
+    assert dims == (50,50)
+    assert A_rala.get((32,3)) == 7
+    assert A_rala[(16,4)] == 0.5
+    assert A_rala[(5,7)] == 0.25
+
+    listado = [[1,2,3],[4,5,6],[1e-20,0.5,0.25]]
+    A_rala, dims = crea_rala(listado, 10, 10)
+    assert dims == (10,10)
+    assert (1,4) not in A_rala
+    assert A_rala[(2,5)] == 0.5
+    assert A_rala[(3,6)] == 0.25
+    assert len(A_rala) == 2
+
+    # caso borde: lista vacia. Esto es una matriz de 0s
+    listado = []
+    A_rala, dims = crea_rala(listado, 10, 10)
+    assert dims == (10,10)
+    assert len(A_rala) == 0
+
+def test_multiplica_rala_vector():
+    listado = [[0,1,2],[0,1,2],[1,2,3]]
+    A_rala = crea_rala(listado, 3, 3)
+    v = np.random.random(3)
+    v = v / np.linalg.norm(v)
+    res = multiplica_rala_vector(A_rala, v)
+    A = np.array([[1,0,0],[0,2,0],[0,0,3]])
+    res_esperado = A @ v
+    assert np.allclose(res, res_esperado)
+
+    A = np.random.random((5,5))
+    A = A * (A > 0.5)
+    listado = [[],[],[]]
+    for i in range(5):
+        for j in range(5):
+            listado[0].append(i)
+            listado[1].append(j)
+            listado[2].append(A[i,j])
+            
+    A_rala = crea_rala(listado,5,5)
+    v = np.random.random(5)
+    assert np.allclose(multiplica_rala_vector(A_rala,v), A @ v)
 
 # ------------------------------------------------------------
 # Laboratorio 8

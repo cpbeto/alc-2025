@@ -702,6 +702,113 @@ def diagRH(A: np.array, atol=1e-15, K=1000):
     return S, D
 
 # ------------------------------------------------------------
+# Laboratorio 7
+# ------------------------------------------------------------
+
+def transiciones_al_azar_continuas(n):
+    """
+    n la cantidad de filas (columnas) de la matriz de transición.
+    Retorna matriz T de n x n normalizada por columnas y con entradas
+    al azar en el intervalo [0, 1).
+    """
+    T = np.random.rand(n, n)
+    for j in range(n):
+        suma = 0
+        for i in range(n):
+            suma += T[i, j]
+        for i in range(n):
+            T[i, j] /= suma
+    return T
+
+def transiciones_al_azar_uniforme(n, threshold):
+    """
+    n la cantidad de filas (columnas) de la matriz de transición.
+    threshold probabilidad de que una entrada sea distinta de cero.
+    Retorna matriz T de n x n normalizada por columnas.
+    El elemento i,j es distinto de cero si el número generado al azar
+    es menor o igual a threshold.
+    Todos los elementos de la columna j son iguales y suman 1.
+    """
+    T = np.random.rand(n, n)
+    for j in range(n):
+        for i in range(n):
+            T[i, j] = 1 if T[i, j] <= threshold else 0
+        suma = 0
+        for i in range(n):
+            suma += T[i, j]
+
+        if suma == 0:
+            # Evitar columnas nulas
+            for i in range(n):
+                T[i, j] = 1 / n
+        else:
+            for i in range(n):
+                T[i, j] /= suma
+    return T
+
+def nucleo(A, atol=1e-15):
+    """
+    A una matriz de m x n
+    atol la tolerancia para considerar que un vector está en el núcleo.
+    Calcula el núcleo de la matriz A diagonilazado A.T @ A, usando el método diagRH.
+    El núcleo corresponde a los autovectores de autovalor <= atol.
+    Retorna los autovectores como una matriz de n x k, siendo k la dimensión del núcleo.
+    """
+    m, n = A.shape
+
+    # Generar matriz cuadrada
+    cuadrada = multiplicar(transpuesta(A), A)
+
+    # Aplicar diagonalización
+    S, D = diagRH(cuadrada, atol, K=10000)
+
+    autovectores = [S[:,i] for i in range(n) if D[i, i] <= atol]
+    k = len(autovectores)
+
+    result = np.zeros((n, k))
+    for i in range(k):
+        result[:, i] = autovectores[i]
+
+    return result
+
+def crea_rala(listado, m, n, atol=1e-15):
+    """
+    Recibe listado, con tres elementos: lista con índices i, lista con índices j
+    y lista con valores A_ij de la matriz A.
+    Recibe las dimensiones de la matriz resultante m x n.
+    Los elementos menores a atol se descartan.
+    Idealmente, el listado debe incluir únicamente posiciones
+    correspondientes a valores distintos de cero.
+    Retorna una lista con:
+        - Diccionario {(i, j): A_ij} con los valores no nulos de la matriz rala.
+        - Tupla (m, n) con las dimensiones de la matriz rala.
+    """
+    if not listado:
+        listado = [[], [], []]
+        
+    filas, columnas, valores = listado
+
+    A = {}
+    for i, j, Aij in zip(filas, columnas, valores):
+        if np.abs(Aij) > atol:
+            A[(i, j)] = Aij
+
+    return A, (m, n)
+
+def multiplica_rala_vector(A, v):
+    """
+    Recibe una matriz rala creada con crea_rala y un vector v.
+    Retorna un vector w resultado de A @ v.
+    """
+    (m, n) = A[1]
+    w = np.zeros(m)
+
+    for (i, j), Aij in A[0].items():
+        w[i] += Aij * v[j]
+
+    return w
+
+# ------------------------------------------------------------
 # Laboratorio 8
 # ------------------------------------------------------------
 
