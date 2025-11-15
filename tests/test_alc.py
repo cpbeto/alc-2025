@@ -5,10 +5,7 @@ from alc.alc import norma, normaliza, normaMatMC, normaExacta, condMC, condExact
 from alc.alc import calculaLU, res_tri, inversa, calculaLDV, esSDP
 from alc.alc import QR_con_GS, QR_con_HH, calculaQR
 from alc.alc import metpot2k, diagRH
-
-# ------------------------------------------------------------
-# Laboratorio 1
-# ------------------------------------------------------------
+from alc.alc import svd_reducida
 
 # ------------------------------------------------------------
 # Laboratorio 1
@@ -143,7 +140,7 @@ def test_normaMatMC():
 
     A = np.array([[1,2],[3,4]])
     result = normaMatMC(A=A, q='inf', p='inf', Np=10000)
-    assert(np.allclose(result[0], normaExacta(A)[1], rtol=1e-1)) 
+    assert(np.allclose(result[0], normaExacta(A)[1], rtol=1e-1))
 
 def test_normaExacta():
     # Default tuple behavior
@@ -459,3 +456,54 @@ def test_diagRH():
         if e < 1e-5: 
             exitos += 1
     assert exitos/N >= 0.95
+
+# ------------------------------------------------------------
+# Laboratorio 8
+# ------------------------------------------------------------
+
+def test_svd_reducida():
+    def genera_matriz_para_test(m, n=2, dimension_nucleo=0):
+        if dimension_nucleo == 0:
+            A = np.random.random((m, n))
+        else:
+            A = np.random.random((m, dimension_nucleo))
+            A = np.hstack([A,A])
+        return(A)
+
+    def test_svd_reducida_mn(A, atol=1e-12):
+        m, n = A.shape
+        hU, hS, hV = svd_reducida(A, atol=atol)
+        nU, nS, nVT = np.linalg.svd(A)
+
+        r = len(hS) + 1
+        assert np.all(np.abs(np.abs(np.diag(hU.T @ nU))-1) < (10**r)*atol), 'Revisar calculo de hat U en ' + str((m,n))
+        assert np.all(np.abs(np.abs(np.diag(nVT @ hV))-1) < (10**r)*atol), 'Revisar calculo de hat V en ' + str((m,n))
+        assert len(hS) == len(nS[np.abs(nS) > atol]), 'Hay cantidades distintas de valores singulares en ' + str((m,n))
+        assert np.all(np.abs(hS-nS[np.abs(nS) > atol]) < (10**r)*atol), 'Hay diferencias en los valores singulares en ' + str((m,n))
+
+    # Tasa de muestreo (30 es el número mágico según alguna literatura)
+    N = 5 # El tiempo de test se dispara con N>1
+
+    for m in [2,5,10,20]:
+        for n in [2,5,10,20]:
+            for _ in range(N):
+                A = genera_matriz_para_test(m, n)
+                test_svd_reducida_mn(A)
+
+
+    # Matrices con núcleo
+    m = 12
+    for dimension_nucleo in [2,4,6]:
+        for _ in range(10):
+            A = genera_matriz_para_test(m, dimension_nucleo=dimension_nucleo)
+            test_svd_reducida_mn(A)
+
+    # Tamaños de las reducidas
+    A = np.random.random((8,6))
+    for k in [1,3,5]:
+        hU, hS, hV = svd_reducida(A, k=k)
+        assert hU.shape[0] == A.shape[0], 'Dimensiones de hU incorrectas (caso a)'
+        assert hV.shape[0] == A.shape[1], 'Dimensiones de hV incorrectas(caso a)'
+        assert hU.shape[1] == k, 'Dimensiones de hU incorrectas (caso a)'
+        assert hV.shape[1] == k, 'Dimensiones de hV incorrectas(caso a)'
+        assert len(hS) == k, 'Tamaño de hS incorrecto'

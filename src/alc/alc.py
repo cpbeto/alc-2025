@@ -41,11 +41,11 @@ def producto_exterior(u, v):
 
 def transpuesta(A):
     m, n = A.shape
-    A_T = np.zeros((n, m))
+    AT = np.zeros((n, m))
     for i in range(m):
         for j in range(n):
-            A_T[j, i] = A[i, j]
-    return A_T
+            AT[j, i] = A[i, j]
+    return AT
 
 # ------------------------------------------------------------
 # Laboratorio 1
@@ -700,3 +700,51 @@ def diagRH(A: np.array, atol=1e-15, K=1000):
 
     # Verificar tolerancia
     return S, D
+
+# ------------------------------------------------------------
+# Laboratorio 8
+# ------------------------------------------------------------
+
+def svd_reducida(A, k='max', atol=1e-15):
+    """
+    A una matriz de m x n
+    k el número de componentes singulares a calcular (por default 'max' calcula el máximo posible)
+    atol la tolerancia para considerar un valor singular igual a cero.
+    Retorna las matrices hatU (m x k), hatSigma (vector de k valores singulares)
+    y hatV (n x k).
+    """
+    m, n = A.shape
+
+    # Generar matriz cuadrada
+    cuadrada = multiplicar(transpuesta(A), A)
+    
+    # Aplicar una diagonalización para obtener autovaloes y autovectores asociados:
+    S, D = diagRH(cuadrada, atol, K=10000)
+
+    # Cuadrada es simétrica, por lo tanto, ortogonalmente diagonalizable. S es ortogonal.
+    # ... pero los autovalores no están ordenados por sus valores absolutos.
+
+    # Armar lista de tuplas ordenadas (lambda, v), descartando autovalores nulos
+    tuplas = [(S[:,i], D[i, i]) for i in range(n) if D[i, i] > atol]
+    tuplas = sorted(tuplas, key=lambda x: x[1], reverse=True)
+
+    L = len(tuplas) if k == 'max' else min(k, len(tuplas))
+
+    # Armar matrices V y Sigma de tamaño L x L
+    VT = np.zeros((L, n))
+    Sigma = np.zeros(L)
+
+    for i in range (L):
+        Sigma[i] = np.sqrt(tuplas[i][1])
+        VT[i] = tuplas[i][0]
+    V = transpuesta(VT)
+    
+    # Calcular la matriz U sabiendo que A*v = s*u => u = (A*v) / s
+
+    U = np.zeros((m, L))
+    for i in range(L):
+        if Sigma[i] > atol:
+            Av = multiplicar(A, vector_columna(V[:, i]))
+            U[:, i] = vector_unidimensional(Av / Sigma[i])
+
+    return U, Sigma, V
