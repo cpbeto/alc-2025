@@ -5,6 +5,10 @@ from alc.alc import norma, normaliza, normaMatMC, normaExacta, condMC, condExact
 from alc.alc import calculaLU, res_tri, inversa, calculaLDV, esSDP
 from alc.alc import QR_con_GS, QR_con_HH, calculaQR
 
+# ------------------------------------------------------------
+# Laboratorio 1
+# ------------------------------------------------------------
+
 def test_error():
     def sonIguales(x, y, atol=1e-8):
         return np.allclose(error(x,y), 0, atol=atol)
@@ -24,6 +28,10 @@ def test_matrices_iguales():
     assert(matricesIguales(np.diag([1,1]), np.eye(2)))
     assert(matricesIguales(np.linalg.inv(np.array([[1,2],[3,4]])) @ np.array([[1,2],[3,4]]), np.eye(2)))
     assert(not matricesIguales(np.array([[1,2],[3,4]]).T, np.array([[1,2],[3,4]])))
+
+# ------------------------------------------------------------
+# Laboratorio 2
+# ------------------------------------------------------------
 
 def test_theta():
     assert(np.allclose(rota(0), np.eye(2)))
@@ -84,6 +92,10 @@ def test_trans_afin():
         trans_afin(np.array([1,0]), np.pi/2, [3,2], [4,5]),
         np.array([4,7])
     ))
+
+# ------------------------------------------------------------
+# Laboratorio 3
+# ------------------------------------------------------------
 
 def test_norma():
     assert(np.allclose(norma(np.array([0,0,0,0]), 1), 0))
@@ -169,6 +181,10 @@ def test_condExacto():
     norma_A_inv = normaExacta(A_inv)[1]
     condA = condExacto(A,'inf')
     assert(np.allclose(norma_A*norma_A_inv, condA))
+
+# ------------------------------------------------------------
+# Laboratorio 4
+# ------------------------------------------------------------
 
 def test_calculaLU():
     L0 = np.array([[1,0,0],
@@ -315,7 +331,10 @@ def test_esSDP():
     A = L0 @ D0 @ V0
     assert(esSDP(A, 1e-3))
 
-# Tests de factorización QR
+# ------------------------------------------------------------
+# Laboratorio 5
+# ------------------------------------------------------------
+
 A2 = np.array([
     [1., 2.],
     [3., 4.]
