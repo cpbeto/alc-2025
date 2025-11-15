@@ -20,7 +20,6 @@ def error_relativo(x, y):
 
     return np.abs(x - y) / x
 
-
 def matricesIguales(A, B, rtol=1e-5, atol=1e-8):
     """
     Devuelve True si ambas matrices son iguales y False en otro caso.
@@ -296,3 +295,115 @@ def calculaLU(A):
                 operaciones += 2
                 
     return L, U, operaciones
+
+def res_tri(L, b, inferior=True):
+    """
+    Resuelve el sistema Lx = b, donde L es triangular. Se puede indicar
+    si es triangular inferior o superior usando el parámetro inferior
+    (por default asumir que es triangular inferior).
+    """
+    m, n = L.shape
+    y = np.zeros(n) 
+    if inferior:
+        # Resolución de sistema triangular inferior: L y = b
+        for fila in range(m):
+            suma = 0
+            for i in range(fila): # Solo los anteriores a la diagonal
+                suma += L[fila, i] * y[i]
+            y[fila] = (b[fila] - suma) / L[fila, fila]
+    else:
+        # Resolución de sistema triangular superior: U y = b
+        for fila in range(n-1, -1, -1):
+            suma = 0
+            for i in range(fila + 1, n): # Sólo los posteriores a la diagonal
+                suma += L[fila, i] * y[i]
+            y[fila] = (b[fila] - suma) / L[fila, fila]
+
+    return y
+
+def inversa(A):
+    """
+    Calcula la inversa de A empleando la factorización LU
+    y las funciones que resuelven sistemas triangulares.
+    """
+    m, n = A.shape
+    if m != n:
+        # raise ValueError
+        return None # Solo matrices cuadradas
+    
+    L, U, _ = calculaLU(A)
+    if L is None or U is None:
+        # raise ArithmeticError
+        return None  # No LU-factorizable
+    
+    I = np.eye(n)
+    A_inv = np.zeros((m,m))
+
+    for i in range(m):
+        e_i = I[:, i]
+        # Resolver L y = e_i (sistema triangular inferior)
+        y = res_tri(L, e_i, inferior=True)
+        # Resolver U x = y (sistema triangular superior)
+        x = res_tri(U, y, inferior=False)
+        # Guardo la columna x en la matriz inversa.
+        A_inv[:, i] = x
+
+    return A_inv
+
+def calculaLDV(A):
+    """
+    Calcula la factorización LDV de la matriz A, de forma tal que A = LDV,
+    con L triangular inferior, D diagonal y V triangular superior. En caso de que
+    la matriz no pueda factorizarse retorna None.
+    """
+    m, n = A.shape
+    L = np.eye(m)
+    V = np.eye(m)
+    D = np.zeros((m, m))
+    A = A.copy()
+
+    for i in range(m):
+        if np.allclose(A[i, i], 0):
+            return None
+
+        D[i, i] = A[i, i]
+
+        # Calcular factores de L y V
+        for j in range(i+1, m):
+            L[j, i] = A[j, i] / D[i, i]
+            V[i, j] = A[i, j] / D[i, i]
+
+        # Actualizar el subbloque restante
+        for j in range(i+1, m):
+            for k in range(i+1, m):
+                A[j, k] = A[j, k] - L[j, i] * D[i, i] * V[i, k]
+
+    return L, D, V
+
+def esSDP(A, atol=1e-8):
+    """
+    Chequea si la matriz A es simétrica definida positiva (SDP)
+    usando la factorización LDV.
+    """
+    m, n = A.shape
+    if n != m:
+        # raise ValueError
+        return False # Solo matrices cuadradas
+        
+    # Simetría
+    for i in range(m):
+        for j in range(n):
+            if not np.allclose(A[i,j], A[j,i], atol=atol):
+                return False
+        
+    LDV = calculaLDV(A)
+    if LDV == None:
+        return False
+
+    _, D, _ = LDV
+    m, n = D.shape
+    for d in range(m):
+        if D[d,d] <= atol: # Pivote no positivo
+            return False
+
+    return True
