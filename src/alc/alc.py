@@ -58,7 +58,7 @@ def escala(s):
     """
     Recibe una tira de números s y retorna una matriz cuadrada de
     n x n, donde n es el tamaño de s.
-    La matriz escala la componenete i de un vector de Rn
+    La matriz escala la componente i de un vector de Rn
     en un factor s[i].
     """
     n = len(s)
@@ -407,3 +407,114 @@ def esSDP(A, atol=1e-8):
             return False
 
     return True
+
+def producto_interno(u, v):
+    if len(u) != len(v):
+        return None
+    suma = 0
+    for i in range(len(u)):
+        suma += u[i] * v[i]
+    return suma
+
+def producto_exterior(v, w):
+    m = len(v)
+    n = len(w)
+    res = np.zeros((m,n))
+    for i in range(m):
+        for j in range (n):
+            res[i][j] = v[i] * w[j]
+    return res   
+
+def QR_con_GS(A, tol = 1e-12, retorna_nops=False):
+    """
+    A una matriz de n x n
+    tol la tolerancia con la que se filtran elementos nulos en R.
+    retorna_nops permite (opcionalmente) retornar el número de operaciones realizadas
+    Retorna matrices Q y R calculadas con Gram-Schmidt (y como tercer argumento opcional,
+    el número de operaciones).
+    Si la matriz A no es cuadrada, retorna None.
+    """
+    m, n = A.shape
+    if m != n:
+        return None # Solo matrices cuadradas
+    
+    Q = np.zeros((m, n)) 
+    Q[:, 0] = A[:, 0] / norma(A[:, 0], p=2)
+
+    for col in range(1, n):
+        Q[:, col] = A[:, col]
+        for i in range(col):
+            num = producto_interno(Q[:, col], Q[:, i])
+            den = producto_interno(Q[:, i], Q[:, i])
+            Q[:, col] = Q[:, col] - (num / den) * Q[:, i]
+        Q[:, col] = Q[:, col] / norma(Q[:, col], p=2)
+    
+    R = Q.T@A
+    return Q, R
+
+def QR_con_HH (A, tol=1e-12):
+    """
+    A una matriz de m x n (m >= n)
+    tol la tolerancia con la que se filtran elementos nulos en R.
+    Retorna matrices Q y R calculadas con reflexiones de Householder.
+    Si la matriz A no cumple m >= n, retorna None.
+    """
+    m, n = A.shape
+    if m < n:
+        return None
+    
+    Q = np.eye(m)
+    R = A.copy()
+
+    for col in range(n):
+        # Construyo vector u de la subcolumna
+        u = np.zeros(m)
+        for i in range(col, m):
+            u[i] = R[i][col]
+        norma = np.linalg.norm(u)
+        if norma < tol:
+            continue
+        
+        signo = np.sign(R[col][col]) if R[col][col] != 0 else 1
+        e = np.zeros(m)
+        e[col] = 1
+        for i in range(m):
+            u[i] += signo * norma * e[i]
+
+        uuT = producto_exterior(u, u)
+        uTu = producto_interno(u, u)
+        H_local = np.eye(m)
+        for i in range(m):
+            for j in range(m):
+                H_local[i][j] -= 2 * uuT[i][j] / uTu
+
+        # Construyo H definitiva
+        H = np.eye(m)
+        for i in range(col, m):
+            for j in range(col, m):
+                H[i][j] = H_local[i][j]
+
+        R = H@R
+        Q = Q@H
+
+    return Q, R
+
+def calculaQR (A, metodo, tol=1e-12, retorna_nops=False):
+    """
+    A una matriz de n x n
+    tol la tolerancia con la que se filtran elementos nulos en R.
+    metodo = ['RH', 'GS'] usa reflectores de Householder o Gram-Schmidt, respectivamente,
+    para realizar la factorización QR.
+    Retorna matrices Q y R calculadas con el método indicado (y como tercer argumento opcional,
+    el número de operaciones si se usa Gram-Schmidt).
+    """
+    m, n = A.shape
+    if m != n:
+        return None # Solo matrices cuadradas
+    
+    if metodo == 'RH':
+        return QR_con_HH(A, tol)
+    if metodo == 'GS':
+        return QR_con_GS(A, tol)
+    else:
+        return None

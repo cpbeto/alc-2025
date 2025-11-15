@@ -1,9 +1,9 @@
-import pytest
 import numpy as np
 from alc.alc import error, error_relativo, matricesIguales
 from alc.alc import rota, escala, rota_y_escala, afin, trans_afin
 from alc.alc import norma, normaliza, normaMatMC, normaExacta, condMC, condExacto
 from alc.alc import calculaLU, res_tri, inversa, calculaLDV, esSDP
+from alc.alc import QR_con_GS, QR_con_HH, calculaQR
 
 def test_error():
     def sonIguales(x, y, atol=1e-8):
@@ -314,3 +314,56 @@ def test_esSDP():
     ]).T
     A = L0 @ D0 @ V0
     assert(esSDP(A, 1e-3))
+
+# Tests de factorización QR
+A2 = np.array([
+    [1., 2.],
+    [3., 4.]
+])
+
+A3 = np.array([
+    [1., 0., 1.],
+    [0., 1., 1.],
+    [1., 1., 0.]
+])
+
+A4 = np.array([
+    [2., 0., 1., 3.],
+    [0., 1., 4., 1.],
+    [1., 0., 2., 0.],
+    [3., 1., 0., 2.]
+])
+
+def check_QR(Q, R, A, atol=1e-10):
+    assert np.allclose(Q.T @ Q, np.eye(Q.shape[1]), atol=atol)
+    assert np.allclose(Q @ R, A, atol=atol)
+    
+def test_QR_con_GS():
+    Q2, R2 = QR_con_GS(A2)
+    check_QR(Q2, R2, A2)
+
+    Q3, R3 = QR_con_GS(A3)
+    check_QR(Q3, R3, A3)
+
+    Q4, R4 = QR_con_GS(A4)
+    check_QR(Q4, R4, A4)
+
+def test_QR_con_HH():
+    Q2, R2 = QR_con_HH(A2)
+    check_QR(Q2,R2,A2)
+
+    Q3, R3 = QR_con_HH(A3)
+    check_QR(Q3, R3,A3)
+
+    Q4, R4 = QR_con_HH(A4)
+    check_QR(Q4, R4,A4)
+
+def test_calculaQR():
+    Q2, R2 = calculaQR(A2, metodo='RH')
+    check_QR(Q2, R2, A2)
+
+    Q3, R3 = calculaQR(A3, metodo='GS')
+    check_QR(Q3, R3, A3)
+
+    Q4, R4 = calculaQR(A4, metodo='RH')
+    check_QR(Q4, R4, A4)
