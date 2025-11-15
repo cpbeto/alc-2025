@@ -269,10 +269,12 @@ def calculaLU(A):
     if m != n:
         # raise NotImplementedError
         return None, None, 0 # Solo matrices cuadradas
-   
+    
     L = np.zeros((m, m))
     U = A.copy()
-    
+
+    operaciones = 0
+
     for fila in range(m):
         # Diagonal de L siempre es 1
         L[fila, fila] = 1
@@ -285,15 +287,12 @@ def calculaLU(A):
 
         for i in range(fila+1, m):
             factor = U[i, fila] / pivote
-            L[i, fila] = factor
-            
-            for j in range(fila, m):
-                U[i, j] -= factor * U[fila, j]
+            operaciones += 1
 
-    operaciones = 0
-    for i in range(m):
-        for j in range(i):
-            if not np.allclose(abs(L[i][j]), 0):
-               operaciones += 1
+            L[i, fila] = factor
+            U[i, fila] = 0 # Elemento debajo del pivote queda en 0
+            for j in range(fila+1, m):
+                U[i, j] -= factor * U[fila, j]
+                operaciones += 2
                 
     return L, U, operaciones
