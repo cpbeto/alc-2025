@@ -506,34 +506,34 @@ def QR_con_GS(A, atol=1e-12, retorna_nops=False):
     Si la matriz A no es cuadrada, retorna None.
     """
     m, n = A.shape
-    if m != n:
+    if m < n:
+        # raise ValueError
         return None # Solo matrices cuadradas
     
     operaciones = 0
 
-    Q = np.zeros((m, n)) 
-    Q[:, 0] = A[:, 0] / norma(A[:, 0], p=2)
-    operaciones += m + 2*m # División elemento a elemento + cálculo de norma
+    Q = np.zeros((m, n))
+    R = np.zeros((m, n))
 
-    for col in range(1, n):
-        Q[:, col] = A[:, col]
-        for i in range(col):
-            factor = producto_interno(Q[:, col], Q[:, i]) / producto_interno(Q[:, i], Q[:, i])
-            operaciones += 2*(2*m-1) + 1  # Dos productos internos + una división
+    # Iterar sobre las columnas de A
+    for j in range(n):
+        v = A[:, j].copy()
 
-            Q[:, col] = Q[:, col] - factor * Q[:, i]
-            operaciones += 2*m # Multiplicación y resta elemento a elemento
+        # Ortogonalizar contra las columnas anteriores de Q
+        for i in range(j):
+            R[i, j] = producto_interno(v, Q[:, i])
+            operaciones += 2*m - 1  # Producto interno
 
-        Q[:, col] = Q[:, col] / norma(Q[:, col], p=2)
+            v -= R[i, j] * Q[:, i]
+            operaciones += 2*m  # Multiplicación y resta elemento a elemento
+
+        R[j, j] = norma(v, p=2)
+        Q[:, j] = v / R[j, j]
         operaciones += m + 2*m  # División elemento a elemento + cálculo de norma
-    
-    R = multiplicar(transpuesta(Q), A)
-    operaciones += n**2 * (2*n)  # Producto matricial
-
+        
     if retorna_nops:
         return Q, R, operaciones
-    else:
-        return Q, R
+    return Q, R
 
 def QR_con_HH(A, atol=1e-12):
     """
