@@ -372,13 +372,13 @@ def test_QR_con_GS():
 
 def test_QR_con_HH():
     Q2, R2 = QR_con_HH(A2)
-    check_QR(Q2,R2,A2)
+    check_QR(Q2, R2, A2)
 
     Q3, R3 = QR_con_HH(A3)
-    check_QR(Q3, R3,A3)
+    check_QR(Q3, R3, A3)
 
     Q4, R4 = QR_con_HH(A4)
-    check_QR(Q4, R4,A4)
+    check_QR(Q4, R4, A4)
 
 def test_calculaQR():
     Q2, R2 = calculaQR(A2, metodo='RH')

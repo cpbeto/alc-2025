@@ -36,7 +36,7 @@ def multiplicar(A, B):
 def producto_interno(u, v):
     return multiplicar(vector_fila(u), vector_columna(v)).item()
 
-def producto_exterior(u, v):
+def producto_externo(u, v):
     return multiplicar(vector_columna(u), vector_fila(v))
 
 def transpuesta(A):
@@ -535,7 +535,7 @@ def QR_con_GS(A, atol=1e-12, retorna_nops=False):
     else:
         return Q, R
 
-def QR_con_HH (A, atol=1e-12):
+def QR_con_HH(A, atol=1e-12):
     """
     A una matriz de m x n (m >= n)
     atol la tolerancia con la que se filtran elementos nulos en R.
@@ -545,44 +545,27 @@ def QR_con_HH (A, atol=1e-12):
     m, n = A.shape
     if m < n:
         return None
-    
+
     Q = np.eye(m)
-    R = np.array(A, dtype=np.float64)
+    A = np.array(A, dtype=np.float64) # Copia modificable de la matriz
 
-    for col in range(n):
-        # Construyo vector u de la subcolumna
-        u = np.zeros(m)
-        for i in range(col, m):
-            u[i] = R[i][col]
-        norma_u = norma(u, p=2)
-        if norma_u < atol:
-            continue
-        
-        signo = np.sign(R[col][col]) if R[col][col] != 0 else 1
-        e = np.zeros(m)
-        e[col] = 1
+    for k in range(n):
+        # Construir el reflector de Householder
+        z = A[k:m, k]
+        v = np.zeros_like(z)
+        v[0] = np.sign(z[0]) * norma(z, p=2)
+        v += z
+        v /= norma(v, p=2)
+
+        # Aplicar la reflexión a cada columna de A y Q
+        for j in range(k, n):            
+            A[k:m, j] = A[k:m, j] - 2 * producto_interno(v, A[k:m, j]) * v
         for i in range(m):
-            u[i] += signo * norma_u * e[i]
+            Q[i, k:m] = Q[i, k:m] - 2 * producto_interno(v, Q[i, k:m]) * vector_fila(v)
 
-        uuT = producto_exterior(u, u)
-        uTu = producto_interno(u, u)
-        H_local = np.eye(m)
-        for i in range(m):
-            for j in range(m):
-                H_local[i][j] -= 2 * uuT[i][j] / uTu
+    return Q, A
 
-        # Construyo H definitiva
-        H = np.eye(m)
-        for i in range(col, m):
-            for j in range(col, m):
-                H[i][j] = H_local[i][j]
-
-        R = multiplicar(H, R)
-        Q = multiplicar(Q, H)
-
-    return Q, R
-
-def calculaQR (A, metodo, atol=1e-12, retorna_nops=False):
+def calculaQR(A, metodo, atol=1e-12, retorna_nops=False):
     """
     A una matriz de n x n
     atol la tolerancia con la que se filtran elementos nulos en R.
@@ -673,7 +656,7 @@ def diagRH(A: np.array, atol=1e-15, K=1000):
         Hv1 = np.eye(n)
     else:
         u = u / norma(u, p=2)
-        Hv1 = np.eye(n) - 2 * producto_exterior(u, u)
+        Hv1 = np.eye(n) - 2 * producto_externo(u, u)
 
     # Caso base n = 2
     if n == 2:
