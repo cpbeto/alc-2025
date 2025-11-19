@@ -838,3 +838,131 @@ def svd_reducida(A, k='max', atol=1e-15):
             U[:, i] = vector_unidimensional(Av / Sigma[i])
 
     return U, Sigma, V
+
+# ------------------------------------------------------------
+# TP
+# ------------------------------------------------------------
+
+# --- Ejercicio 1 ---
+def cargar_dataset(carpeta):
+    """
+    Carga el dataset de embeddings guardados en la carpeta indicada;
+    siguiendo la estructura de carpetas del enunciado.
+    Devuelve las matrices X_train, Y_train, X_val, Y_val.
+    """
+    # carpeta = "template-alumnos/dataset/cats_and_dogs"
+
+    # --- Training dataset ---
+    X_cats = np.load(f'{carpeta}/train/cats/efficientnet_b3_embeddings.npy')
+    X_dogs = np.load(f'{carpeta}/train/dogs/efficientnet_b3_embeddings.npy')
+
+    X_train = np.hstack([X_cats, X_dogs])  
+    Y_train = np.hstack([
+        np.tile([[1],[0]], (1, X_cats.shape[1])),
+        np.tile([[0],[1]], (1, X_dogs.shape[1]))
+    ])                                             
+
+    # --- Validation dataset ---
+    V_cats = np.load(f'{carpeta}/val/cats/efficientnet_b3_embeddings.npy')
+    V_dogs = np.load(f'{carpeta}/val/dogs/efficientnet_b3_embeddings.npy')
+
+    X_val = np.hstack([V_cats, V_dogs])
+    Y_val = np.hstack([
+        np.tile([[1],[0]], (1, V_cats.shape[1])),
+        np.tile([[0],[1]], (1, V_dogs.shape[1]))
+    ])
+
+    return X_train, Y_train, X_val, Y_val
+
+# --- Ejercicio 2 ---
+def Cholesky(A):
+    """
+    A matriz simétrica definida positiva (SDP) de tamaño m x n
+    Devuelve L matriz triangular inferior tal que A = L L^T
+    """
+    A = A.astype(np.float64)
+    m, n = A.shape
+    L = np.zeros_like(A)
+
+    for i in range(m):
+        for j in range(i + 1):
+            if i == j:
+                suma_cuadrados = 0.0
+                for k in range(j):
+                    suma_cuadrados += L[i, k] ** 2
+
+                termino = A[i, i] - suma_cuadrados
+
+                if termino <= 0:
+                    raise ValueError('Matriz no SDP o error numérico.')
+
+                L[i, i] = np.sqrt(termino)
+
+            else:
+                producto_punto = 0.0
+                for k in range(j):
+                    producto_punto += L[i, k] * L[j, k]
+
+                L[i, j] = (A[i, j] - producto_punto) / L[j, j]
+
+    return L
+
+def pinvEcuacionesNormales(X, L, Y):
+    """
+    L: (d x d), tal que X X^T = L L^T
+    X: (d x p)
+    Y: (2 x p)
+    Devuelve W: (2 x d)
+    """
+
+    # 1) L Z = X
+    Z = sust_adelante_matriz(L, X) # Z: (d x p)
+
+    # 2) L^T V = Z
+    Lt = transpuesta(L)
+    V = sust_atras_matriz(Lt, Z) # V: (d x p)
+
+    # 3) W = Y V^T
+    Vt = transpuesta(V) # (p x d)
+    W  = multiplicar(Y, Vt) # (2 x d)
+
+    return W
+
+# --- Ejercicio 4 ---
+def pinvGramSchmidt(Q, R, Y):
+    """
+    Recibe Q, R factores de X.T y la matriz Y.
+    Calcula X⁺ = Q (R.T)⁻¹
+    Calcula W = Y X⁺
+    """
+    R_T = transpuesta(R)
+    R_inv = inversa(R_T)
+    W = multiplicar(Y, multiplicar(Q, R_inv))
+    return W
+
+def pinvHouseHolder(Q, R, Y):
+    """
+    Recibe Q, R factores de X.T y la matriz Y.
+    Calcula X⁺ = Q (R.T)⁻¹
+    Calcula W = Y X⁺
+    """
+    R_T = transpuesta(R)
+    R_inv = inversa(R_T)
+    W = multiplicar(Y, multiplicar(Q, R_inv))
+    return W
+
+# --- Ejercicio 5 ---
+def esPseudoInverda(X, pX, atol=1e-8):
+    """
+    Recibe matrices X y pX.
+    Devuelve True si pX verifica las 4 condiciones de Moore-Penrose, False en otro caso.
+    """
+    # Verificamos las 4 condiciones
+    condicion1 = matricesIguales(multiplicar(multiplicar(X, pX), X), X, atol=atol)
+    condicion2 = matricesIguales(multiplicar(multiplicar(pX, X), pX), pX, atol=atol)
+    condicion3 = simetrica(multiplicar(X, pX), atol=atol)
+    condicion4 = simetrica(multiplicar(pX, X), atol=atol)
+
+    # Separamos las condiciones por claridad, pero no se aprovecha el short-circuit de los operadores and.
+    # Podría definirse de otra manera e implementar short-circuit para mejor performance.
+    return (condicion1 and condicion2 and condicion3 and condicion4)
