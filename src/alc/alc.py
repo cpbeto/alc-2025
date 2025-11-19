@@ -839,6 +839,73 @@ def svd_reducida(A, k='max', atol=1e-15):
 
     return U, Sigma, V
 
+def sust_atras_matriz(U, B):
+    """
+    Resuelve U X = B para cuando B es matriz
+   
+    """
+
+    U = np.array(U, dtype=float)
+    B = np.array(B, dtype=float)
+
+    n, m = B.shape
+    X = np.zeros((n, m))
+
+    for j in range(m):
+        bj = B[:, j]
+        xj = res_tri(U, bj,inferior=False)
+        X[:, j] = xj
+
+    return X
+
+def sust_adelante_matriz(L, B):
+    """
+    Resuelve L Z = B para cuando B es matriz
+
+    """
+    L = np.array(L, dtype=float)
+    B = np.array(B, dtype=float)
+
+
+
+    n, m = B.shape
+    Z = np.zeros((n, m))
+
+    for j in range(m):
+        bj = B[:, j]
+        zj = res_tri(L, bj,inferior=True)
+        Z[:, j] = zj
+
+    return Z
+
+def matmul_multiple(A,B,C):
+    aux = multiplicar(A,B)
+    return multiplicar(aux,C)
+
+def invertirSigma(s):
+    """
+    Recibe una lista s = [σ1, σ2, ..., σn]
+    y devuelve la matriz Σ^{-1} como lista de listas,
+    donde Σ^{-1} es diagonal con 1/σi en la diagonal.
+    """
+        # Aseguro que sea 1D
+    s = np.array(s, float).ravel()
+    n = len(s)
+    Sigma_inv = []
+
+    for i in range(n):
+        fila = []
+        for j in range(n):
+            if i == j:
+                if s[i] == 0:
+                    raise ValueError("No se puede invertir un valor singular cero")
+                fila.append(1.0 / s[i])
+            else:
+                fila.append(0.0)
+        Sigma_inv.append(fila)
+
+    return np.array(Sigma_inv)
+
 # ------------------------------------------------------------
 # TP
 # ------------------------------------------------------------
@@ -926,6 +993,46 @@ def pinvEcuacionesNormales(X, L, Y):
     Vt = transpuesta(V) # (p x d)
     W  = multiplicar(Y, Vt) # (2 x d)
 
+    return W
+
+#--- Ejercicio 3 ---
+    
+def pinvSVD(U, S, Vt, Y):
+    '''Con las matrices U, S y Vt de la descomposicion SVD e Y  calculamos W = YVS^-1U^T
+
+    donde la pseudoInversa es VS^-1U^T y X=USV^T
+    
+    '''
+    
+    n = S.shape[0]
+   
+
+    # Calculamos Sigma_1^-1
+    sigma_inversa = invertirSigma(S)
+
+    # Calculamos la pseudo-inversa de X
+    
+    V = transpuesta(Vt)
+    V1 = V[:,:n]
+    U1 = U[:,:n]
+
+    pseudoInversa = multiplicar(multiplicar(V1, sigma_inversa), transpuesta(U1))
+
+    
+    W = multiplicar(Y, pseudoInversa)
+
+    return W
+
+def algoritmo2(X,Y):
+
+
+    X = np.array(X, float)
+    Y = np.array(Y, float)
+
+    U,S,Vt = svd_reducida(X)
+
+    W = pinvSVD(U,S,Vt,Y)
+    
     return W
 
 # --- Ejercicio 4 ---
