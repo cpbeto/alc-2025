@@ -1037,7 +1037,7 @@ def invertirSigma(s):
 
     return np.array(Sigma_inv)
 
-def pinvSVD(U, S, Vt, Y):
+def pinvSVD(U, S, V, Y):
     """
     U, S y V matrices de la descomposicion SVD e Y matriz target.
     Calcula W = Y V S^-1 U^T,
