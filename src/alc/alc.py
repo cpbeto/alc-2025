@@ -925,35 +925,24 @@ def cargar_dataset(carpeta):
     return X_train, Y_train, X_val, Y_val
 
 # --- Ejercicio 2 ---
-def Cholesky(A):
+def cholesky(A: np.array, atol=1e-10):
     """
-    A matriz simétrica definida positiva (SDP) de tamaño m x n
+    A matriz simétrica definida positiva (SDP) de tamaño n x n
     Devuelve L matriz triangular inferior tal que A = L L^T
     """
-    A = A.astype(np.float64)
-    m, n = A.shape
-    L = np.zeros_like(A)
+    n = A.shape[0]
+    L = np.zeros_like(A, dtype=float)
 
-    for i in range(m):
-        for j in range(i + 1):
-            if i == j:
-                suma_cuadrados = 0.0
-                for k in range(j):
-                    suma_cuadrados += L[i, k] ** 2
+    for i in range(n):
+        for j in range(i+1):
+            suma = A[i, j] - np.dot(L[i, :j], L[j, :j])
 
-                termino = A[i, i] - suma_cuadrados
-
-                if termino <= 0:
-                    raise ValueError('Matriz no SDP o error numérico.')
-
-                L[i, i] = np.sqrt(termino)
-
+            if i == j:   # elementos diagonales
+                if suma <= atol:
+                    raise ValueError("La matriz no es definida positiva")
+                L[i, j] = np.sqrt(suma)
             else:
-                producto_punto = 0.0
-                for k in range(j):
-                    producto_punto += L[i, k] * L[j, k]
-
-                L[i, j] = (A[i, j] - producto_punto) / L[j, j]
+                L[i, j] = suma / L[j, j]
 
     return L
 
@@ -974,43 +963,54 @@ def sust_atras_matriz(U, B):
 
     return X
 
-def sust_adelante_matriz(L, B):
-    """
-    Resuelve L Z = B para cuando B es matriz
-    """
-    L = np.array(L, dtype=np.float64)
-    B = np.array(B, dtype=np.float64)
+def adelante(L: np.array, B: np.array):
+    n = L.shape[0]
+    Z = np.zeros_like(B, dtype=float)
 
-    n, m = B.shape
-    Z = np.zeros((n, m))
-
-    for j in range(m):
-        bj = B[:, j]
-        zj = res_tri(L, bj, inferior=True)
-        Z[:, j] = zj
+    for i in range(n):
+        Z[i] = (B[i] - multiplicar(L[i, :i], Z[:i])) / L[i, i]
 
     return Z
 
-def pinvEcuacionesNormales(X, L, Y):
-    """
-    L: (d x d), tal que X X^T = L L^T
-    X: (d x p)
-    Y: (2 x p)
-    Devuelve W: (2 x d)
-    """
+def atras(U: np.array, B: np.array):
+    n = U.shape[0]
+    Z = np.zeros_like(B, dtype=float)
 
-    # 1) L Z = X
-    Z = sust_adelante_matriz(L, X) # Z: (d x p)
+    for i in range(n-1, -1, -1):
+        Z[i] = (B[i] - multiplicar(U[i, i+1:], Z[i+1:])) / U[i, i]
 
-    # 2) L^T V = Z
-    Lt = transpuesta(L)
-    V = sust_atras_matriz(Lt, Z) # V: (d x p)
+    return Z
 
-    # 3) W = Y V^T
-    Vt = transpuesta(V) # (p x d)
-    W  = multiplicar(Y, Vt) # (2 x d)
+def pinvEcuacionesNormales(X: np.array, L: np.array, Y: np.array) -> np.array:
+    n, p = X.shape
+    
+    # Caso (a): n >= p -> X^+ = (X^T X)^(-1) X^T
+    # Incluye el caso cuadrado (c) donde n = p.
+    if n >= p:
+        XT = transpuesta(X) # p × n
 
-    return W
+        # Resolver (X^T X) U = X^T
+        # L Z = X^T
+        # L^T U = Z
+        Z = adelante(L, XT)
+        U = atras(transpuesta(L), Z)
+
+        # W = Y X^+
+        W = multiplicar(Y, U)
+        return W
+    
+    # Caso (b): n < p -> X^+ = X^T (XX^T)^(-1)
+    else:
+        # Resolver (XX^T) V^T = X
+        # L Z = X
+        # L^T V^T = Z
+        Z = adelante(L, X)
+        Vt = atras(transpuesta(L), Z)
+        V = transpuesta(Vt)
+
+        # W = Y X^+
+        W = multiplicar(Y, V)
+        return W
 
 #--- Ejercicio 3 ---
 def invertirSigma(s):

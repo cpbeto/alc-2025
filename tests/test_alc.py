@@ -7,6 +7,7 @@ from alc.alc import QR_con_GS, QR_con_HH, calculaQR
 from alc.alc import metpot2k, diagRH
 from alc.alc import transiciones_al_azar_continuas, transiciones_al_azar_uniforme, nucleo, crea_rala, multiplica_rala_vector
 from alc.alc import svd_reducida
+from alc.alc import inversa_triangular_inferior, inversa_triangular_superior
 
 # ------------------------------------------------------------
 # Laboratorio 1
@@ -356,6 +357,19 @@ A4 = np.array([
     [3., 1., 0., 2.]
 ])
 
+A5 = np.array([
+    [1., 2.],
+    [3., 4.],
+    [5., 6.]
+])
+
+A6 = np.array([
+    [1., 2., 3.],
+    [2., 4., 6.],
+    [3., 6., 9.],
+    [4., 8., 12.]
+])
+
 def check_QR(Q, R, A, atol=1e-10):
     assert np.allclose(Q.T @ Q, np.eye(Q.shape[1]), atol=atol)
     assert np.allclose(Q @ R, A, atol=atol)
@@ -370,6 +384,27 @@ def test_QR_con_GS():
     Q4, R4 = QR_con_GS(A4)
     check_QR(Q4, R4, A4)
 
+    A = np.eye(3)
+    Q, R = QR_con_GS(A)
+    check_QR(Q, R, A)
+
+    A[2,2] = -1
+    Q, R = QR_con_GS(A)
+    check_QR(Q, R, A)
+    
+    A[1,1] = 0
+    Q, R = QR_con_GS(A)
+    # Q no es ortogonal
+    assert np.allclose(Q @ R, A, atol=1e-10)
+
+    # Matrices rectangulares
+    Q5, R5 = QR_con_GS(A5)
+    check_QR(Q5, R5, A5)
+
+    Q6, R6 = QR_con_GS(A6)
+    # Q no es ortogonal
+    assert np.allclose(Q6 @ R6, A6, atol=1e-10)
+
 def test_QR_con_HH():
     Q2, R2 = QR_con_HH(A2)
     check_QR(Q2, R2, A2)
@@ -379,6 +414,26 @@ def test_QR_con_HH():
 
     Q4, R4 = QR_con_HH(A4)
     check_QR(Q4, R4, A4)
+
+    A = np.eye(3)
+    Q, R = QR_con_HH(A)
+    check_QR(Q, R, A)
+
+    A[2,2] = -1
+    Q, R = QR_con_HH(A)
+    check_QR(Q, R, A)
+    
+    A[1,1] = 0
+    Q, R = QR_con_HH(A)
+    check_QR(Q, R, A)
+
+    # Matrices rectangulares
+    Q5, R5 = QR_con_GS(A5)
+    check_QR(Q5, R5, A5)
+
+    Q6, R6 = QR_con_GS(A6)
+    # Q no es ortogonal
+    assert np.allclose(Q6 @ R6, A6, atol=1e-10)
 
 def test_calculaQR():
     Q2, R2 = calculaQR(A2, metodo='RH')
@@ -513,7 +568,6 @@ def test_transiciones_al_azar_uniforme():
 
     for n in range(N):
         T = transiciones_al_azar_uniforme(n, threshold=0.3)
-        print(T)
         assert es_markov_uniforme(T)
         T = transiciones_al_azar_uniforme(n, threshold=0.01)
         assert es_markov_uniforme(T)
@@ -648,3 +702,67 @@ def test_svd_reducida():
         assert hU.shape[1] == k, 'Dimensiones de hU incorrectas (caso a)'
         assert hV.shape[1] == k, 'Dimensiones de hV incorrectas(caso a)'
         assert len(hS) == k, 'Tamaño de hS incorrecto'
+
+# ------------------------------------------------------------
+# TP
+# ------------------------------------------------------------
+
+U1 = np.array([[2., 1., 0.],
+               [0., 3., 1.],
+               [0., 0., 4.]])
+
+U2 = np.array([[1., 2.],
+              [0., 5.]])
+
+U3 = np.array([[4.]])
+
+U4 = np.array([[4, 2, -1],
+              [0, 3, 5],
+              [0, 0, 2]])
+
+U5 = np.array([[2.3, -1.1, 0.4, 5.2],
+              [0., 3.6, 2.1, -0.9],
+              [0., 0., -4.7, 1.3],
+              [0., 0., 0. , 6.5]])
+
+def test_inversa_triangular_inferior():
+    U_inv = inversa_triangular_inferior(U1.T)
+    U_inv_esperada = np.linalg.inv(U1.T)
+    assert np.allclose(U_inv, U_inv_esperada)
+
+    U_inv = inversa_triangular_inferior(U2.T)
+    U_inv_esperada = np.linalg.inv(U2.T)
+    assert np.allclose(U_inv, U_inv_esperada)
+
+    U_inv = inversa_triangular_inferior(U3.T)
+    U_inv_esperada = np.linalg.inv(U3.T)
+    assert np.allclose(U_inv, U_inv_esperada)
+
+    U_inv = inversa_triangular_inferior(U4.T)
+    U_inv_esperada = np.linalg.inv(U4.T)
+    assert np.allclose(U_inv, U_inv_esperada)
+
+    U_inv = inversa_triangular_inferior(U5.T)
+    U_inv_esperada = np.linalg.inv(U5.T)
+    assert np.allclose(U_inv, U_inv_esperada)
+
+def test_inversa_triangular_superior():
+    U_inv = inversa_triangular_superior(U1)
+    U_inv_esperada = np.linalg.inv(U1)
+    assert np.allclose(U_inv, U_inv_esperada)
+
+    U_inv = inversa_triangular_superior(U2)
+    U_inv_esperada = np.linalg.inv(U2)
+    assert np.allclose(U_inv, U_inv_esperada)
+
+    U_inv = inversa_triangular_superior(U3)
+    U_inv_esperada = np.linalg.inv(U3)
+    assert np.allclose(U_inv, U_inv_esperada)
+
+    U_inv = inversa_triangular_superior(U4)
+    U_inv_esperada = np.linalg.inv(U4)
+    assert np.allclose(U_inv, U_inv_esperada)
+
+    U_inv = inversa_triangular_superior(U5)
+    U_inv_esperada = np.linalg.inv(U5)
+    assert np.allclose(U_inv, U_inv_esperada)
