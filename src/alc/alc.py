@@ -16,22 +16,23 @@ def vector_columna(v):
     return v.reshape(-1, 1)
 
 def multiplicar(A, B):
-    m_A, n_A = A.shape
-    m_B, n_B = B.shape
+    return A @ B
+    # m_A, n_A = A.shape
+    # m_B, n_B = B.shape
 
-    if n_A != m_B:
-        raise ValueError
-        # return None
+    # if n_A != m_B:
+    #     raise ValueError
+    #     # return None
     
-    result = np.zeros((m_A, n_B))
-    for i in range(m_A):
-        for j in range(n_B):
-            suma = 0
-            for k in range(m_B):
-                suma += A[i, k] * B[k, j]
-            result[i, j] = suma
+    # result = np.zeros((m_A, n_B))
+    # for i in range(m_A):
+    #     for j in range(n_B):
+    #         suma = 0
+    #         for k in range(m_B):
+    #             suma += A[i, k] * B[k, j]
+    #         result[i, j] = suma
     
-    return result
+    # return result
 
 def producto_interno(u, v):
     return multiplicar(vector_fila(u), vector_columna(v)).item()
@@ -40,12 +41,13 @@ def producto_externo(u, v):
     return multiplicar(vector_columna(u), vector_fila(v))
 
 def transpuesta(A):
-    m, n = A.shape
-    AT = np.zeros((n, m))
-    for i in range(m):
-        for j in range(n):
-            AT[j, i] = A[i, j]
-    return AT
+    return A.transpose()
+    # m, n = A.shape
+    # AT = np.zeros((n, m))
+    # for i in range(m):
+    #     for j in range(n):
+    #         AT[j, i] = A[i, j]
+    # return AT
 
 # ------------------------------------------------------------
 # Laboratorio 1
@@ -496,23 +498,31 @@ def condExacto(A, p):
 # Laboratorio 5
 # ------------------------------------------------------------
 
+def QR_con_GS_rectangular(A, atol=1e-12):
+    """
+    A una matriz de m x n (larga o cuadrada)
+    atol la tolerancia con la que se filtran elementos nulos en R (no utilizado).
+    Retorna matrices Q y R calculadas con Gram-Schmidt.
+    """
+    m, n = A.shape
+    if m < n: # Solo rectangulares
+        raise ValueError
+    
+
+
 def QR_con_GS(A, atol=1e-12, retorna_nops=False):
     """
     A una matriz de n x n
     atol la tolerancia con la que se filtran elementos nulos en R (no utilizado).
-    retorna_nops permite (opcionalmente) retornar el número de operaciones realizadas
-    Retorna matrices Q y R calculadas con Gram-Schmidt (y como tercer argumento opcional,
-    el número de operaciones).
-    Si la matriz A no es cuadrada, retorna None.
+    retorna_nops no está implementado.
+    Retorna matrices Q y R calculadas con Gram-Schmidt.
     """
     m, n = A.shape
     if m < n:
-        # raise ValueError
-        return None # Solo matrices cuadradas
-    
-    operaciones = 0
+        raise ValueError('Matrices anchas no son soportadas')
 
-    Q = np.zeros((m, n))
+    # (1) QR reducida via Gram-Schmidt
+    Q = np.zeros((m, m))
     R = np.zeros((m, n))
 
     # Iterar sobre las columnas de A
@@ -522,17 +532,35 @@ def QR_con_GS(A, atol=1e-12, retorna_nops=False):
         # Ortogonalizar contra las columnas anteriores de Q
         for i in range(j):
             R[i, j] = producto_interno(v, Q[:, i])
-            operaciones += 2*m - 1  # Producto interno
-
             v -= R[i, j] * Q[:, i]
-            operaciones += 2*m  # Multiplicación y resta elemento a elemento
 
-        R[j, j] = norma(v, p=2)
+        norma2 = norma(v, p=2)
+        # Omitimos columna linearmente independiente
+        if norma2 < atol:
+            R[j, j] = 0.0
+            continue
+
+        R[j, j] = norma2
         Q[:, j] = v / R[j, j]
-        operaciones += m + 2*m  # División elemento a elemento + cálculo de norma
-        
-    if retorna_nops:
-        return Q, R, operaciones
+
+    # (2) Completar Q a una base ortonormal
+    k = n
+    for e_idx in range(m):
+        if k >= m:
+            break
+
+        # Vector canónico i-ésimo
+        v = np.eye(m)[:, e_idx]
+
+        # Ortogonalizar
+        for i in range(k):
+            v -= producto_interno(v, Q[:, i]) * Q[:, i]
+
+        norma2 = norma(v, p=2)
+        if norma2 > atol:
+            Q[:, k] = v / norma2
+            k += 1
+
     return Q, R
 
 def QR_con_HH(A, atol=1e-12):
@@ -549,19 +577,30 @@ def QR_con_HH(A, atol=1e-12):
     Q = np.eye(m)
     A = np.array(A, dtype=np.float64) # Copia modificable de la matriz
 
-    for k in range(n):
+    for k in range(min(m, n)):
         # Construir el reflector de Householder
-        z = A[k:m, k]
+        z = A[k:, k]
+        # Omitimos si ya hay ceros debajo de la diagonal
+        norma2 = norma(z, p=2)
+        if norma2 < atol:
+            continue
+
         v = np.zeros_like(z)
-        v[0] = np.sign(z[0]) * norma(z, p=2)
+        v[0] = np.sign(z[0]) * norma2
         v += z
-        v /= norma(v, p=2)
+
+        norma2 = norma(v, p=2)
+        # Omitimos si hay cancelación numérica
+        if norma2 < atol:
+            continue
+
+        v /= norma2
 
         # Aplicar la reflexión a cada columna de A y Q
         for j in range(k, n):            
-            A[k:m, j] = A[k:m, j] - 2 * producto_interno(v, A[k:m, j]) * v
+            A[k:, j] = A[k:, j] - 2 * producto_interno(v, A[k:, j]) * v
         for i in range(m):
-            Q[i, k:m] = Q[i, k:m] - 2 * producto_interno(v, Q[i, k:m]) * vector_fila(v)
+            Q[i, k:] = Q[i, k:] - 2 * producto_interno(v, Q[i, k:]) * vector_fila(v)
 
     return Q, A
 
@@ -601,29 +640,37 @@ def metpot2k(A: np.array, atol=1e-15, K=1000):
     if m != n:
         return None # Solo matrices cuadradas
     
-    # Genero un vector aleatorio de norma 1
-    u = np.random.rand(m)
-    u = vector_columna(u) / norma(u, p=2)
+    # Función transformación f_A aplicada k veces
+    def f_A(A, v, k=1):
+        if k < 1:
+            raise ValueError
+        
+        w = multiplicar(A, v)
+        norma2 = norma(w, p=2)
+        w = w / norma2 if norma2 > 0 else 0
+        
+        return w if k == 1 else f_A(A, w, k-1)
+    
+    # Generar un vector aleatorio de norma 1
+    v1 = np.random.rand(m)
+    v1 = vector_columna(v1) / norma(v1, p=2)
+
+    # Aplicar transformación y calcular producto interno
+    v2 = f_A(A, v1, k=2)
+    e = producto_interno(v2, v1)
     
     iteraciones = 0
-    lambda1 = 0
+    while error(e, 1) > atol and iteraciones < K:
+        v1 = v2
+        v2 = f_A(A, v1, k=2)
+        e = producto_interno(v2, v1)
 
-    for _ in range(K):
-        v = multiplicar(A, u)
-        v = v / norma(v, p=2)
-
-        # Chequeo de convergencia
-        if norma(v - u, p=2) < atol:
-            break
-
-        u = v
         iteraciones += 1
 
     # Calculo lambda con el último v obtenido
-    Av = multiplicar(A, v)
-    lambda1 = producto_interno(v, Av)
+    lambda1 = producto_interno(v2, multiplicar(A, v2))
 
-    return v, lambda1, iteraciones
+    return v2, lambda1, iteraciones
 
 def diagRH(A: np.array, atol=1e-15, K=1000):
     """
@@ -704,6 +751,9 @@ def transiciones_al_azar_continuas(n):
     return T
 
 def transiciones_al_azar_uniforme(n, threshold):
+    return transiciones_al_azar_uniformes(n, threshold)
+
+def transiciones_al_azar_uniformes(n, threshold):
     """
     n la cantidad de filas (columnas) de la matriz de transición.
     threshold probabilidad de que una entrada sea distinta de cero.
@@ -989,18 +1039,16 @@ def invertirSigma(s):
 
 def pinvSVD(U, S, Vt, Y):
     """
-    U, S y Vt matrices de la descomposicion SVD e Y matriz target.
+    U, S y V matrices de la descomposicion SVD e Y matriz target.
     Calcula W = Y V S^-1 U^T,
     donde la pseudo-inversa es V S^-1 U^T y X = U S V^T
     """
-
     n = S.shape[0]
 
     # Calculamos Sigma_1^-1
     sigma_inversa = invertirSigma(S)
 
     # Calculamos la pseudo-inversa de X
-    V = transpuesta(Vt)
     V1 = V[:,:n]
     U1 = U[:,:n]
 
@@ -1011,12 +1059,62 @@ def pinvSVD(U, S, Vt, Y):
     return W
 
 # --- Ejercicio 4 ---
+def inversa_triangular_inferior(L):
+    """
+    Recibe L triangular inferior.
+    Devuelve L⁻¹.
+    """
+    m, n = L.shape
+    if m != n:
+        raise ValueError('La matriz L debe ser cuadrada.')
+    
+    L_inv = np.zeros((n, n))
+
+    for i in range(n):
+        L_inv[i, i] = 1 / L[i, i]
+
+        for j in range(i):
+            acc = 0.0
+            for k in range(j, i):
+                acc += L[i, k] * L_inv[k, j]
+            L_inv[i, j] = -acc / L[i, i]
+
+    return L_inv
+
+
+def inversa_triangular_superior(U):
+    """
+    Recibe R triangular superior.
+    Devuelve R⁻¹.
+    """
+    m, n = U.shape
+    if m != n:
+        raise ValueError('La matriz R debe ser cuadrada.')
+    
+    U_inv = np.zeros((n, n))
+
+    for i in range(n - 1, -1, -1):
+        U_inv[i, i] = 1 / U[i, i]
+
+        for j in range(i+1, n):
+            acc = 0.0
+            for k in range(i+1, j+1):
+                acc += U[i, k] * U_inv[k, j]
+            U_inv[i, j] = -acc / U[i, i]
+
+    return U_inv
+
 def pinvGramSchmidt(Q, R, Y):
     """
     Recibe Q, R factores de X.T y la matriz Y.
     Calcula X⁺ = Q (R.T)⁻¹
     Calcula W = Y X⁺
     """
+    # Recortamos (reducimos) las matrices
+    _, n = R.shape
+    Q_hh = Q_hh[:, :n] # Las columnas de índice >= n se ignoran
+    R_hh = R_hh[:n, :] # Ceros debajo de la diagonal si es m x n
+
     R_T = transpuesta(R)
     R_inv = inversa(R_T)
     W = multiplicar(Y, multiplicar(Q, R_inv))
@@ -1028,13 +1126,18 @@ def pinvHouseHolder(Q, R, Y):
     Calcula X⁺ = Q (R.T)⁻¹
     Calcula W = Y X⁺
     """
+    # Recortamos (reducimos) las matrices
+    _, n = R.shape
+    Q_hh = Q_hh[:, :n] # Las columnas de índice >= n se ignoran
+    R_hh = R_hh[:n, :] # Ceros debajo de la diagonal si es m x n (nop si es n x n)
+
     R_T = transpuesta(R)
     R_inv = inversa(R_T)
     W = multiplicar(Y, multiplicar(Q, R_inv))
     return W
 
 # --- Ejercicio 5 ---
-def esPseudoInverda(X, pX, atol=1e-8):
+def esPseudoInversa(X, pX, atol=1e-8):
     """
     Recibe matrices X y pX.
     Devuelve True si pX verifica las 4 condiciones de Moore-Penrose, False en otro caso.
